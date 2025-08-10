@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EquityExplorer Dashboard</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #f8f9fa;
+            --dark-bg: #343a40;
+        }
+        
+        body {
+            background-color: var(--light-bg);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 25px;
+            padding: 10px 25px;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color), #2ecc71);
+            border: none;
+            border-radius: 25px;
+            padding: 10px 25px;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning-color), #f1c40f);
+            border: none;
+            border-radius: 25px;
+            padding: 10px 25px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-online { background-color: var(--success-color); }
+        .status-offline { background-color: var(--danger-color); }
+        .status-warning { background-color: var(--warning-color); }
+        
+        .file-item {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--secondary-color);
+            transition: all 0.3s ease;
+        }
+        
+        .file-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .ticker-input {
+            border-radius: 25px;
+            border: 2px solid #e9ecef;
+            padding: 10px 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .ticker-input:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+        }
+        
+        .loading {
+            display: none;
+        }
+        
+        .loading.show {
+            display: inline-block;
+        }
+        
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+        
+        .table-responsive {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .data-table {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .alert {
+            border-radius: 10px;
+            border: none;
+        }
+        
+        .progress {
+            height: 8px;
+            border-radius: 10px;
+        }
+        
+        .metric-card {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        .metric-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-graph-up"></i> EquityExplorer
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text">
+                    <span class="status-indicator status-online" id="statusIndicator"></span>
+                    <span id="statusText">System Online</span>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Status Row -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="metric-value" id="totalFiles">0</div>
+                    <div class="metric-label">Total Files</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="metric-value" id="totalTickers">0</div>
+                    <div class="metric-label">Tickers Available</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="metric-value" id="lastProcessed">-</div>
+                    <div class="metric-label">Last Processed</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card metric-card">
+                    <div class="metric-value" id="systemStatus">Ready</div>
+                    <div class="metric-label">System Status</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="row">
+            <!-- Left Column - Controls -->
+            <div class="col-lg-4">
+                <!-- Ticker Processing -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-play-circle"></i> Process Tickers
+                    </div>
+                    <div class="card-body">
+                        <!-- Single Ticker -->
+                        <div class="mb-3">
+                            <label class="form-label">Single Ticker</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control ticker-input" id="singleTicker" placeholder="e.g., AAPL" maxlength="5">
+                                <button class="btn btn-primary" type="button" id="processSingleBtn">
+                                    <span class="loading spinner-border-sm spinner-border"></span>
+                                    Process
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Multiple Tickers -->
+                        <div class="mb-3">
+                            <label class="form-label">Multiple Tickers</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control ticker-input" id="multipleTickers" placeholder="e.g., AAPL,MSFT,GOOGL">
+                                <button class="btn btn-success" type="button" id="processMultipleBtn">
+                                    <span class="loading spinner-border-sm spinner-border"></span>
+                                    Process All
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Full Analysis -->
+                        <div class="mb-3">
+                            <label class="form-label">Full Analysis</label>
+                            <button class="btn btn-warning w-100" type="button" id="runFullAnalysisBtn">
+                                <span class="loading spinner-border-sm spinner-border"></span>
+                                Run Full Analysis
+                            </button>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="progress mb-3" style="display: none;" id="progressBar">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                        </div>
+
+                        <!-- Status Messages -->
+                        <div id="statusMessages"></div>
+                    </div>
+                </div>
+
+                <!-- Configuration -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-gear"></i> Configuration
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Output Directory</small>
+                                <div class="fw-bold" id="outputDir">-</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Max Retries</small>
+                                <div class="fw-bold" id="maxRetries">-</div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-6">
+                                <small class="text-muted">Retry Delay</small>
+                                <div class="fw-bold" id="retryDelay">-</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Chunk Size</small>
+                                <div class="fw-bold" id="chunkSize">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Files and Data -->
+            <div class="col-lg-8">
+                <!-- Files List -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-file-earmark-text"></i> Generated Files</span>
+                        <button class="btn btn-sm btn-outline-primary" id="refreshFilesBtn">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="filesList">
+                            <div class="text-center text-muted py-4">
+                                <i class="bi bi-file-earmark-text" style="font-size: 3rem;"></i>
+                                <p class="mt-2">No files generated yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Viewer -->
+                <div class="card" id="dataViewerCard" style="display: none;">
+                    <div class="card-header">
+                        <i class="bi bi-table"></i> Data Viewer
+                        <button class="btn btn-sm btn-outline-secondary float-end" id="closeDataViewerBtn">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="dataViewer">
+                            <div class="text-center">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <!-- Toasts will be dynamically added here -->
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    
+    <script>
+        // Global variables
+        let currentDataTable = null;
+        let systemStatus = 'offline';
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        function initializeApp() {
+            // Load initial data
+            loadSystemStatus();
+            loadConfiguration();
+            loadFiles();
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Set up auto-refresh
+            setInterval(loadSystemStatus, 30000); // Refresh every 30 seconds
+        }
+
+        function setupEventListeners() {
+            // Single ticker processing
+            document.getElementById('processSingleBtn').addEventListener('click', processSingleTicker);
+            document.getElementById('singleTicker').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') processSingleTicker();
+            });
+
+            // Multiple tickers processing
+            document.getElementById('processMultipleBtn').addEventListener('click', processMultipleTickers);
+            document.getElementById('multipleTickers').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') processMultipleTickers();
+            });
+
+            // Full analysis
+            document.getElementById('runFullAnalysisBtn').addEventListener('click', runFullAnalysis);
+
+            // File management
+            document.getElementById('refreshFilesBtn').addEventListener('click', loadFiles);
+            document.getElementById('closeDataViewerBtn').addEventListener('click', closeDataViewer);
+        }
+
+        async function loadSystemStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateStatusIndicator('online', 'System Online');
+                    updateMetrics(data);
+                    systemStatus = 'online';
+                } else {
+                    updateStatusIndicator('offline', 'System Offline');
+                    systemStatus = 'offline';
+                }
+            } catch (error) {
+                console.error('Error loading system status:', error);
+                updateStatusIndicator('offline', 'Connection Error');
+                systemStatus = 'offline';
+            }
+        }
+
+        function updateStatusIndicator(status, text) {
+            const indicator = document.getElementById('statusIndicator');
+            const textElement = document.getElementById('statusText');
+            
+            indicator.className = `status-indicator status-${status}`;
+            textElement.textContent = text;
+        }
+
+        function updateMetrics(data) {
+            if (data.latest_files) {
+                document.getElementById('totalFiles').textContent = data.latest_files.length;
+                
+                if (data.latest_files.length > 0) {
+                    const lastFile = data.latest_files[0];
+                    const date = new Date(lastFile.modified);
+                    document.getElementById('lastProcessed').textContent = date.toLocaleDateString();
+                }
+            }
+        }
+
+        async function loadConfiguration() {
+            try {
+                const response = await fetch('/api/config');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const config = data.config;
+                    document.getElementById('outputDir').textContent = config.output_dir.split('/').pop() || config.output_dir;
+                    document.getElementById('maxRetries').textContent = config.max_retries;
+                    document.getElementById('retryDelay').textContent = config.retry_delay + 's';
+                    document.getElementById('chunkSize').textContent = config.chunk_size;
+                    document.getElementById('totalTickers').textContent = config.default_stocks.length;
+                }
+            } catch (error) {
+                console.error('Error loading configuration:', error);
+            }
+        }
+
+        async function loadFiles() {
+            try {
+                const response = await fetch('/api/files');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    displayFiles(data.files);
+                } else {
+                    showToast('Error loading files', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading files:', error);
+                showToast('Error loading files', 'error');
+            }
+        }
+
+        function displayFiles(files) {
+            const filesList = document.getElementById('filesList');
+            
+            if (files.length === 0) {
+                filesList.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-file-earmark-text" style="font-size: 3rem;"></i>
+                        <p class="mt-2">No files generated yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let filesHtml = '';
+            files.forEach(file => {
+                const date = new Date(file.modified);
+                const size = formatFileSize(file.size);
+                
+                filesHtml += `
+                    <div class="file-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h6 class="mb-1">${file.name}</h6>
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar"></i> ${date.toLocaleDateString()} ${date.toLocaleTimeString()}
+                                </small>
+                            </div>
+                            <div class="col-md-3">
+                                <span class="badge bg-secondary">${size}</span>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="viewFile('${file.name}')">
+                                    <i class="bi bi-eye"></i> View
+                                </button>
+                                <button class="btn btn-sm btn-outline-success me-1" onclick="downloadFile('${file.name}')">
+                                    <i class="bi bi-download"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteFile('${file.name}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            filesList.innerHTML = filesHtml;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function processSingleTicker() {
+            const ticker = document.getElementById('singleTicker').value.trim().toUpperCase();
+            if (!ticker) {
+                showToast('Please enter a ticker symbol', 'warning');
+                return;
+            }
+            
+            setLoading('processSingleBtn', true);
+            showProgressBar();
+            
+            try {
+                const response = await fetch('/api/process-ticker', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ ticker: ticker })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showToast(data.message, 'success');
+                    document.getElementById('singleTicker').value = '';
+                    loadFiles();
+                    loadSystemStatus();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error processing ticker:', error);
+                showToast('Error processing ticker', 'error');
+            } finally {
+                setLoading('processSingleBtn', false);
+                hideProgressBar();
+            }
+        }
+
+        async function processMultipleTickers() {
+            const tickersInput = document.getElementById('multipleTickers').value.trim();
+            if (!tickersInput) {
+                showToast('Please enter ticker symbols', 'warning');
+                return;
+            }
+            
+            const tickers = tickersInput.split(',').map(t => t.trim().toUpperCase()).filter(t => t);
+            if (tickers.length === 0) {
+                showToast('Please enter valid ticker symbols', 'warning');
+                return;
+            }
+            
+            setLoading('processMultipleBtn', true);
+            showProgressBar();
+            
+            try {
+                const response = await fetch('/api/process-tickers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ tickers: tickers })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showToast(data.message, 'success');
+                    document.getElementById('multipleTickers').value = '';
+                    loadFiles();
+                    loadSystemStatus();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error processing tickers:', error);
+                showToast('Error processing tickers', 'error');
+            } finally {
+                setLoading('processMultipleBtn', false);
+                hideProgressBar();
+            }
+        }
+
+        async function runFullAnalysis() {
+            if (!confirm('This will process all default tickers. Continue?')) {
+                return;
+            }
+            
+            setLoading('runFullAnalysisBtn', true);
+            showProgressBar();
+            
+            try {
+                const response = await fetch('/api/run-full-analysis', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showToast(data.message, 'success');
+                    loadFiles();
+                    loadSystemStatus();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error running full analysis:', error);
+                showToast('Error running full analysis', 'error');
+            } finally {
+                setLoading('runFullAnalysisBtn', false);
+                hideProgressBar();
+            }
+        }
+
+        async function viewFile(filename) {
+            document.getElementById('dataViewerCard').style.display = 'block';
+            document.getElementById('dataViewer').innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(`/api/files/${filename}`);
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    displayFileData(data.data);
+                } else {
+                    document.getElementById('dataViewer').innerHTML = `
+                        <div class="alert alert-danger">
+                            Error loading file: ${data.message}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error viewing file:', error);
+                document.getElementById('dataViewer').innerHTML = `
+                    <div class="alert alert-danger">
+                        Error loading file
+                    </div>
+                `;
+            }
+        }
+
+        function displayFileData(fileData) {
+            const dataViewer = document.getElementById('dataViewer');
+            
+            let html = `
+                <div class="mb-3">
+                    <h6>${fileData.info.filename}</h6>
+                    <small class="text-muted">
+                        Size: ${formatFileSize(fileData.info.size)} | 
+                        Modified: ${new Date(fileData.info.modified).toLocaleString()} |
+                        Rows: ${fileData.shape[0]} | 
+                        Columns: ${fileData.shape[1]}
+                    </small>
+                </div>
+            `;
+            
+            if (fileData.rows.length > 0) {
+                html += `
+                    <div class="table-responsive data-table">
+                        <table class="table table-striped table-hover" id="dataTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    ${fileData.columns.map(col => `<th>${col}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${fileData.rows.slice(0, 100).map(row => `
+                                    <tr>
+                                        ${row.map(cell => `<td>${cell !== null ? cell : '-'}</td>`).join('')}
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                if (fileData.rows.length > 100) {
+                    html += `
+                        <div class="alert alert-info">
+                            Showing first 100 rows of ${fileData.rows.length} total rows.
+                        </div>
+                    `;
+                }
+            } else {
+                html += `
+                    <div class="alert alert-warning">
+                        No data rows found in this file.
+                    </div>
+                `;
+            }
+            
+            dataViewer.innerHTML = html;
+            
+            // Initialize DataTable if not already done
+            if (currentDataTable) {
+                currentDataTable.destroy();
+            }
+            
+            if (fileData.rows.length > 0) {
+                currentDataTable = $('#dataTable').DataTable({
+                    pageLength: 25,
+                    order: [[0, 'asc']],
+                    responsive: true,
+                    dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip'
+                });
+            }
+        }
+
+        function closeDataViewer() {
+            document.getElementById('dataViewerCard').style.display = 'none';
+            if (currentDataTable) {
+                currentDataTable.destroy();
+                currentDataTable = null;
+            }
+        }
+
+        async function downloadFile(filename) {
+            try {
+                window.open(`/api/download/${filename}`, '_blank');
+            } catch (error) {
+                console.error('Error downloading file:', error);
+                showToast('Error downloading file', 'error');
+            }
+        }
+
+        async function deleteFile(filename) {
+            if (!confirm(`Are you sure you want to delete ${filename}?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/delete/${filename}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showToast(data.message, 'success');
+                    loadFiles();
+                    loadSystemStatus();
+                } else {
+                    showToast(data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting file:', error);
+                showToast('Error deleting file', 'error');
+            }
+        }
+
+        function setLoading(buttonId, loading) {
+            const button = document.getElementById(buttonId);
+            const loadingElement = button.querySelector('.loading');
+            
+            if (loading) {
+                button.disabled = true;
+                loadingElement.classList.add('show');
+            } else {
+                button.disabled = false;
+                loadingElement.classList.remove('show');
+            }
+        }
+
+        function showProgressBar() {
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.display = 'block';
+            
+            // Animate progress bar
+            const bar = progressBar.querySelector('.progress-bar');
+            let width = 0;
+            const interval = setInterval(() => {
+                if (width >= 90) {
+                    clearInterval(interval);
+                } else {
+                    width += 10;
+                    bar.style.width = width + '%';
+                }
+            }, 200);
+        }
+
+        function hideProgressBar() {
+            const progressBar = document.getElementById('progressBar');
+            const bar = progressBar.querySelector('.progress-bar');
+            bar.style.width = '100%';
+            
+            setTimeout(() => {
+                progressBar.style.display = 'none';
+                bar.style.width = '0%';
+            }, 500);
+        }
+
+        function showToast(message, type = 'info') {
+            const toastContainer = document.querySelector('.toast-container');
+            const toastId = 'toast-' + Date.now();
+            
+            const toastHtml = `
+                <div class="toast" id="${toastId}" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <i class="bi bi-${type === 'success' ? 'check-circle text-success' : type === 'error' ? 'x-circle text-danger' : type === 'warning' ? 'exclamation-triangle text-warning' : 'info-circle text-info'} me-2"></i>
+                        <strong class="me-auto">EquityExplorer</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+            
+            // Auto-remove after showing
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                toastElement.remove();
+            });
+        }
+    </script>
+</body>
+</html> 
